@@ -31,14 +31,14 @@ enum ModelPayloadParser {
     private static func makeModel(from dictionary: [String: Any], assumesLoadedModels: Bool) -> LMStudioModel? {
         let name = stringValue(
             in: dictionary,
-            keys: ["displayName", "display_name", "name", "id", "model", "modelKey", "model_key", "path"]
+            keys: ["displayName", "display_name", "name", "id", "model", "modelKey", "model_key", "key", "path"]
         )
 
         guard let name, !name.isEmpty else {
             return nil
         }
 
-        let modelKey = stringValue(in: dictionary, keys: ["modelKey", "model_key", "id", "model"])
+        let modelKey = stringValue(in: dictionary, keys: ["modelKey", "model_key", "key", "id", "model"])
         let type = stringValue(in: dictionary, keys: ["type", "architecture", "format"])
         let contextLength = intValue(in: dictionary, keys: ["maxContextLength", "max_context_length", "context_length", "ctx"])
         let loadedInstances = loadedInstanceCount(in: dictionary, assumesLoadedModels: assumesLoadedModels)
@@ -50,7 +50,9 @@ enum ModelPayloadParser {
             modelKey: modelKey,
             type: type,
             contextLength: contextLength,
-            loadedInstances: loadedInstances
+            loadedInstances: loadedInstances,
+            activity: .idle,
+            queuedRequests: 0
         )
     }
 

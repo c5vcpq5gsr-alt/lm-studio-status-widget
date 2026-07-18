@@ -6,6 +6,7 @@ It shows:
 
 - whether the LM Studio server responds
 - currently loaded models
+- active token generation (`GEN`), observed duration, and queued requests
 - the endpoint used for the latest successful check
 
 Requirements:
@@ -27,6 +28,9 @@ Run locally:
 ```
 
 The app polls `/api/v1/models` first and falls back to the OpenAI-compatible `/v1/models` endpoint.
+For a local server it also reads the supported `lms ps --json` runtime status. LM Studio does not expose
+another client's exact live token count through this interface, so the widget shows the exact generation
+state and how long it has observed it instead of estimating a misleading token number.
 
 ## Privacy
 

@@ -7,6 +7,12 @@ struct LMStudioModel: Identifiable, Equatable {
     let type: String?
     let contextLength: Int?
     let loadedInstances: Int
+    let activity: ModelActivity
+    let queuedRequests: Int
+
+    var isGenerating: Bool {
+        activity == .generating
+    }
 
     var subtitle: String {
         var parts: [String] = []
@@ -25,6 +31,31 @@ struct LMStudioModel: Identifiable, Equatable {
 
         return parts.joined(separator: " / ")
     }
+
+    func applying(runtime: LMStudioRuntimeInfo) -> LMStudioModel {
+        LMStudioModel(
+            id: id,
+            name: name,
+            modelKey: modelKey,
+            type: type,
+            contextLength: contextLength,
+            loadedInstances: loadedInstances,
+            activity: runtime.activity,
+            queuedRequests: runtime.queuedRequests
+        )
+    }
+}
+
+enum ModelActivity: String, Equatable {
+    case idle
+    case loading
+    case generating
+}
+
+struct LMStudioRuntimeInfo: Equatable {
+    let identifier: String
+    let activity: ModelActivity
+    let queuedRequests: Int
 }
 
 struct LMStudioSnapshot: Equatable {
@@ -46,6 +77,10 @@ struct LMStudioSnapshot: Equatable {
         models
             .filter { $0.loadedInstances > 0 }
             .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
+
+    var generatingModels: [LMStudioModel] {
+        loadedModels.filter(\.isGenerating)
     }
 }
 

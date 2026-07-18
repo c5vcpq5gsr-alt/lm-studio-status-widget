@@ -28,6 +28,7 @@ final class StatusStore: ObservableObject {
 
     private let client = LMStudioClient()
     private var timer: Timer?
+    private var generationDetectedAt: [String: Date] = [:]
 
     init() {
         let defaults = UserDefaults.standard
@@ -41,12 +42,18 @@ final class StatusStore: ObservableObject {
         snapshot.loadedModels
     }
 
+    var generatingModels: [LMStudioModel] {
+        snapshot.generatingModels
+    }
+
     var menuBarTitle: String {
         switch snapshot.serverState {
         case .checking:
             "LM Studio"
         case .online:
-            loadedModels.isEmpty ? "LM Studio" : "\(loadedModels.count)"
+            generatingModels.isEmpty
+                ? (loadedModels.isEmpty ? "LM Studio" : "\(loadedModels.count)")
+                : "\(generatingModels.count) GEN"
         case .offline:
             "LM Studio"
         }
@@ -57,7 +64,9 @@ final class StatusStore: ObservableObject {
         case .checking:
             "arrow.triangle.2.circlepath"
         case .online:
-            loadedModels.isEmpty ? "checkmark.circle" : "checkmark.circle.fill"
+            generatingModels.isEmpty
+                ? (loadedModels.isEmpty ? "checkmark.circle" : "checkmark.circle.fill")
+                : "waveform.circle.fill"
         case .offline:
             "xmark.circle"
         }
@@ -73,8 +82,11 @@ final class StatusStore: ObservableObject {
         isRefreshing = true
 
         do {
-            snapshot = try await client.fetchSnapshot(baseURLString: baseURLString)
+            let newSnapshot = try await client.fetchSnapshot(baseURLString: baseURLString)
+            updateGenerationTracking(for: newSnapshot)
+            snapshot = newSnapshot
         } catch {
+            generationDetectedAt.removeAll()
             snapshot = LMStudioSnapshot(
                 serverState: .offline,
                 models: [],
@@ -85,6 +97,19 @@ final class StatusStore: ObservableObject {
         }
 
         isRefreshing = false
+    }
+
+    func generationStart(for model: LMStudioModel) -> Date? {
+        generationDetectedAt[model.id]
+    }
+
+    private func updateGenerationTracking(for newSnapshot: LMStudioSnapshot) {
+        let generatingIDs = Set(newSnapshot.generatingModels.map(\.id))
+        generationDetectedAt = generationDetectedAt.filter { generatingIDs.contains($0.key) }
+
+        for id in generatingIDs where generationDetectedAt[id] == nil {
+            generationDetectedAt[id] = Date()
+        }
     }
 
     private func restartTimer() {

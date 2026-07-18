@@ -13,7 +13,7 @@ struct ContentView: View {
 
                 Divider()
 
-                ModelListView(models: store.loadedModels, state: store.snapshot.serverState)
+                ModelListView(store: store)
 
                 Spacer(minLength: 0)
 
@@ -114,8 +114,10 @@ private struct HeaderView: View {
 }
 
 private struct ModelListView: View {
-    let models: [LMStudioModel]
-    let state: ServerState
+    @ObservedObject var store: StatusStore
+
+    private var models: [LMStudioModel] { store.loadedModels }
+    private var state: ServerState { store.snapshot.serverState }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -133,7 +135,7 @@ private struct ModelListView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 8) {
                         ForEach(models) { model in
-                            ModelRow(model: model)
+                            ModelRow(model: model, generationStart: store.generationStart(for: model))
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -146,6 +148,7 @@ private struct ModelListView: View {
 
 private struct ModelRow: View {
     let model: LMStudioModel
+    let generationStart: Date?
 
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
@@ -166,8 +169,48 @@ private struct ModelRow: View {
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
+
+                if model.isGenerating {
+                    GenerationStatusView(
+                        startedAt: generationStart,
+                        queuedRequests: model.queuedRequests
+                    )
+                }
             }
         }
+    }
+}
+
+private struct GenerationStatusView: View {
+    let startedAt: Date?
+    let queuedRequests: Int
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            HStack(spacing: 5) {
+                ProgressView()
+                    .controlSize(.mini)
+
+                Text("GEN")
+                    .fontWeight(.semibold)
+
+                if let startedAt {
+                    Text(Self.elapsed(from: startedAt, to: context.date))
+                        .monospacedDigit()
+                }
+
+                if queuedRequests > 0 {
+                    Text("+\(queuedRequests) wartet")
+                }
+            }
+            .font(.caption)
+            .foregroundStyle(.green)
+        }
+    }
+
+    private static func elapsed(from start: Date, to end: Date) -> String {
+        let seconds = max(0, Int(end.timeIntervalSince(start)))
+        return String(format: "%d:%02d", seconds / 60, seconds % 60)
     }
 }
 

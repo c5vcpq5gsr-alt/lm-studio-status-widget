@@ -28,10 +28,11 @@ final class LMStudioClient: @unchecked Sendable {
                     from: data,
                     assumesLoadedModels: endpoint.assumesLoadedModels
                 )
+                let enrichedModels = await enrichWithLocalRuntimeInfo(models, baseURL: baseURL)
 
                 return LMStudioSnapshot(
                     serverState: .online,
-                    models: models,
+                    models: enrichedModels,
                     sourceEndpoint: endpoint.path,
                     checkedAt: Date(),
                     errorMessage: nil
@@ -80,6 +81,75 @@ final class LMStudioClient: @unchecked Sendable {
         }
 
         return URL(string: withScheme.trimmingCharacters(in: CharacterSet(charactersIn: "/")))
+    }
+
+    private func enrichWithLocalRuntimeInfo(
+        _ models: [LMStudioModel],
+        baseURL: URL
+    ) async -> [LMStudioModel] {
+        guard Self.isLocal(baseURL), let executableURL = Self.lmsExecutableURL() else {
+            return models
+        }
+
+        let runtimeInfo = await Task.detached(priority: .utility) {
+            Self.fetchRuntimeInfo(executableURL: executableURL)
+        }.value
+
+        guard !runtimeInfo.isEmpty else { return models }
+
+        let infoByIdentifier = Dictionary(uniqueKeysWithValues: runtimeInfo.map { ($0.identifier, $0) })
+        return models.map { model in
+            let identifiers = [model.id, model.modelKey, model.name].compactMap { $0 }
+            guard let runtime = identifiers.compactMap({ infoByIdentifier[$0] }).first else {
+                return model
+            }
+            return model.applying(runtime: runtime)
+        }
+    }
+
+    private static func isLocal(_ url: URL) -> Bool {
+        guard let host = url.host?.lowercased() else { return false }
+        return ["localhost", "127.0.0.1", "::1"].contains(host)
+    }
+
+    private static func lmsExecutableURL() -> URL? {
+        let homeDirectory = FileManager.default.homeDirectoryForCurrentUser
+        let candidates = [
+            homeDirectory.appending(path: ".lmstudio/bin/lms"),
+            URL(fileURLWithPath: "/opt/homebrew/bin/lms"),
+            URL(fileURLWithPath: "/usr/local/bin/lms")
+        ]
+
+        return candidates.first { FileManager.default.isExecutableFile(atPath: $0.path) }
+    }
+
+    private static func fetchRuntimeInfo(executableURL: URL) -> [LMStudioRuntimeInfo] {
+        let process = Process()
+        let output = Pipe()
+        process.executableURL = executableURL
+        process.arguments = ["ps", "--json"]
+        process.standardOutput = output
+        process.standardError = FileHandle.nullDevice
+
+        do {
+            try process.run()
+
+            let timeout = DispatchWorkItem {
+                if process.isRunning {
+                    process.terminate()
+                }
+            }
+            DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 1.5, execute: timeout)
+
+            let data = output.fileHandleForReading.readDataToEndOfFile()
+            process.waitUntilExit()
+            timeout.cancel()
+
+            guard process.terminationStatus == 0 else { return [] }
+            return (try? RuntimePayloadParser.parseRuntimeInfo(from: data)) ?? []
+        } catch {
+            return []
+        }
     }
 }
 

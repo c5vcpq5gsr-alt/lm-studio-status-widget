@@ -14,7 +14,10 @@ struct MenuBarContent: View {
                 Text(store.snapshot.serverState == .offline ? "Keine Verbindung" : "Keine Modelle geladen")
             } else {
                 ForEach(store.loadedModels.prefix(6)) { model in
-                    Label(model.name, systemImage: "cpu")
+                    Label(
+                        model.isGenerating ? "GEN · \(model.name)" : model.name,
+                        systemImage: model.isGenerating ? "waveform" : "cpu"
+                    )
                 }
             }
         }
