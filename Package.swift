@@ -16,6 +16,10 @@ let package = Package(
         .executableTarget(
             name: "LMStudioStatusWidget",
             path: "Sources/LMStudioStatusWidget"
+        ),
+        .testTarget(
+            name: "LMStudioStatusWidgetTests",
+            dependencies: ["LMStudioStatusWidget"]
         )
     ]
 )

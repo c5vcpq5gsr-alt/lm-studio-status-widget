@@ -12,7 +12,7 @@ It shows:
 Requirements:
 
 - macOS 15 or newer
-- Xcode Command Line Tools
+- Xcode with a macOS 15 SDK or newer
 - LM Studio local server on port `1234`
 
 Default server URL:
@@ -25,6 +25,12 @@ Run locally:
 
 ```bash
 ./script/build_and_run.sh
+```
+
+Run the parser tests:
+
+```bash
+swift test
 ```
 
 The app polls `/api/v1/models` first and falls back to the OpenAI-compatible `/v1/models` endpoint.

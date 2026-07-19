@@ -14,10 +14,8 @@ APP_MACOS="$APP_CONTENTS/MacOS"
 APP_RESOURCES="$APP_CONTENTS/Resources"
 APP_BINARY="$APP_MACOS/$APP_NAME"
 INFO_PLIST="$APP_CONTENTS/Info.plist"
-
-if [[ -z "${SDKROOT:-}" && -d "/Library/Developer/CommandLineTools/SDKs/MacOSX15.4.sdk" ]]; then
-  export SDKROOT="/Library/Developer/CommandLineTools/SDKs/MacOSX15.4.sdk"
-fi
+APP_ICON_NAME="AppIcon.icns"
+APP_ICON_SOURCE="$ROOT_DIR/Assets/$APP_ICON_NAME"
 
 export CLANG_MODULE_CACHE_PATH="${CLANG_MODULE_CACHE_PATH:-$ROOT_DIR/.build/clang-module-cache}"
 
@@ -28,6 +26,7 @@ BUILD_BINARY="$(swift build --show-bin-path)/$APP_NAME"
 
 mkdir -p "$APP_MACOS" "$APP_RESOURCES"
 cp "$BUILD_BINARY" "$APP_BINARY"
+cp "$APP_ICON_SOURCE" "$APP_RESOURCES/$APP_ICON_NAME"
 chmod +x "$APP_BINARY"
 
 cat >"$INFO_PLIST" <<PLIST
@@ -39,6 +38,8 @@ cat >"$INFO_PLIST" <<PLIST
   <string>$APP_NAME</string>
   <key>CFBundleIdentifier</key>
   <string>$BUNDLE_ID</string>
+  <key>CFBundleIconFile</key>
+  <string>$APP_ICON_NAME</string>
   <key>CFBundleName</key>
   <string>$APP_NAME</string>
   <key>CFBundlePackageType</key>
