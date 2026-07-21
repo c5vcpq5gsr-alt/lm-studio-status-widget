@@ -33,6 +33,44 @@ Run the parser tests:
 swift test
 ```
 
+## Release workflow
+
+Development builds created by `script/build_and_run.sh` are ad-hoc signed and are not release artifacts.
+Official releases are built, Developer ID signed, notarized, stapled, and verified locally before anything
+is uploaded to GitHub.
+
+Local prerequisites:
+
+- the Developer ID Application identity in the login Keychain
+- the `notarytool` Keychain profile `LMStudioStatusWidget-notary`
+- GitHub CLI authentication for the separate publish step
+
+Create and verify a local release without publishing it:
+
+```bash
+./script/release.sh 1.3.0
+```
+
+This produces the final ZIP, a SHA-256 file, the original notarization submission, and the Apple notary
+result/log below `dist/`. Review the result before publishing.
+
+Publishing is intentionally separate and requires a clean `main` worktree. It creates and pushes the version
+tag, publishes the GitHub release, downloads the asset again, and re-verifies the downloaded app:
+
+```bash
+./script/publish_release.sh 1.3.0 path/to/release-notes.md
+```
+
+Omit the notes file to use GitHub-generated release notes. Validate everything locally without changing Git or
+GitHub by using:
+
+```bash
+./script/publish_release.sh --dry-run 1.3.0
+```
+
+GitHub Actions runs `swift test` and `swift build -c release` for pushes and pull requests. Signing and
+notarization stay local, so no Apple certificate or notarization secrets are stored on GitHub.
+
 The app polls `/api/v1/models` first and falls back to the OpenAI-compatible `/v1/models` endpoint.
 For a local server it also reads the supported `lms ps --json` runtime status. LM Studio does not expose
 another client's exact live token count through this interface, so the widget shows the exact generation

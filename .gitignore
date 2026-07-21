@@ -1,3 +1,5 @@
 .DS_Store
 .build/
 dist/
+*.p12
+AuthKey_*.p8

@@ -1,0 +1,46 @@
+name: Swift
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: swift-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-and-build:
+    runs-on: macos-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Show Swift toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+
+      - name: Validate scripts and whitespace
+        run: |
+          bash -n script/build_and_run.sh
+          bash -n script/release.sh
+          bash -n script/publish_release.sh
+          git diff --check
+
+      - name: Run parser tests
+        run: swift test
+
+      - name: Build optimized release
+        run: swift build -c release
